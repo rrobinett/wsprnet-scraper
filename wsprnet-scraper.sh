@@ -740,8 +740,8 @@ function setup_systemctl_deamon() {
     User=${my_id}
     Group=${my_group}
     Type=forking
-    ExecStop=${WSPRNET_SCRAPER_HOME_PATH}/${WSPRNET_SCRAPER_SERVICE_NAME}.sh -z
     ExecStart=${WSPRNET_SCRAPER_HOME_PATH}/${WSPRNET_SCRAPER_SERVICE_NAME}.sh -a
+    ExecStop=${WSPRNET_SCRAPER_HOME_PATH}/${WSPRNET_SCRAPER_SERVICE_NAME}.sh -z
     Restart=on-abort
 
     [Install]
