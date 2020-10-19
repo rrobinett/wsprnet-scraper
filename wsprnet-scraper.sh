@@ -256,7 +256,7 @@ function wpsrnet_get_spots() {
     [[ ${verbosity} -ge 2 ]] && echo "$(date): wpsrnet_get_spots() starting curl download for spotnum_start=${WSPRNET_LAST_SPOTNUM}"
     local start_seconds=${SECONDS}
     local curl_str="'{spotnum_start:\"${WSPRNET_LAST_SPOTNUM}\",band:\"All\",callsign:\"\",reporter:\"\",exclude_special:\"1\"}'"
-    curl -s -m ${WSPRNET_CURL_TIMEOUT-10} -b "${session_token}" -H "Content-Type: application/json" -X POST -d ${curl_str}  "http://wsprnet.org/drupal/wsprnet/spots/json?minutes=8&band=All&spotnum_start=${WSPRNET_LAST_SPOTNUM}" > ${WSPRNET_HTML_SPOT_FILE}
+    curl -s -m ${WSPRNET_CURL_TIMEOUT-10} -b "${session_token}" -H "Content-Type: application/json" -X POST -d ${curl_str}  "http://wsprnet.org/drupal/wsprnet/spots/json?band=All&spotnum_start=${WSPRNET_LAST_SPOTNUM}&exclude_special=0" > ${WSPRNET_HTML_SPOT_FILE}
     local ret_code=$?
     local end_seconds=${SECONDS}
     local curl_seconds=$(( end_seconds - start_seconds))
@@ -324,16 +324,13 @@ function wsprnet_to_csv() {
                if [[ ${gap_size} -gt ${max_gap_size} ]]; then
                    max_gap_size=${gap_size}
                fi
-               [[ ${verbosity} -ge 3 ]] && printf "$(date): wsprnet_to_csv() found gap of %3d at index %3d:  Expected ${expected_seq}, got ${got_seq}\n" "${gap_size}" "${index}"
+               [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() found gap of %3d at index %4d:  Expected ${expected_seq}, got ${got_seq}\n" "${gap_size}" "${index}"
            fi
            expected_seq=${next_seq}
        fi
     done
-    if [[ ${verbosity} -ge 1 ]] && [[ ${max_gap_size} -gt 2 ]] && [[ ${WSPRNET_LAST_SPOTNUM} -ne 0 ]]; then
-        printf "$(date): wsprnet_to_csv() found gap of %4d spotnums within the scrape\n" "${max_gap_size}"
-    fi
-    if [[ ${verbosity} -ge 3 ]] && [[ ${total_gaps} -ne 0 ]]; then
-        printf "$(date): wsprnet_to_csv() found ${total_gaps} gaps missing a total of ${total_missing} spots\n"
+    if [[ ${verbosity} -ge 1 ]] && [[ ${max_gap_size} -gt 0 ]] && [[ ${WSPRNET_LAST_SPOTNUM} -ne 0 ]]; then
+        printf "$(date): wsprnet_to_csv() found ${total_gaps} gaps missing a total of ${total_missing} spots. The max gap was of ${max_gap_size} spot numbers\n"
     fi
 
     unset lines   ### just to be sure we don't use it again
@@ -357,7 +354,7 @@ function wsprnet_to_csv() {
 
     local first_spot_array=(${sorted_lines_array[0]//,/ })
     local last_spot_array=(${sorted_lines_array[${max_index}]//,/ })
-    [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() got scrape with %4d spots from ${#dates[@]} wspr cycles. First spot: ${first_spot_array[0]}/${first_spot_array[1]}, Last spot: ${last_spot_array[0]}/${last_spot_array[1]}\n" "${#sorted_lines_array[@]}"
+    [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() got scrape with %4d spots from %4d wspr cycles. First spot: ${first_spot_array[0]}/${first_spot_array[1]}, Last spot: ${last_spot_array[0]}/${last_spot_array[1]}\n" "${#dates[@]}" "${#sorted_lines_array[@]}"
 
     ### For monitoring and validation, document the gap between the last spot of the last scrape and the first spot of this scrape
     local spot_num_gap=$(( ${first_spot_array[0]} - ${WSPRNET_LAST_SPOTNUM} ))
