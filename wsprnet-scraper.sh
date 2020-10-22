@@ -370,7 +370,7 @@ function wsprnet_to_csv() {
 
     local first_spot_array=(${sorted_lines_array[0]//,/ })
     local last_spot_array=(${sorted_lines_array[${max_index}]//,/ })
-    [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() got scrape with %4d spots from %4d wspr cycles. First spot: ${first_spot_array[0]}/${first_spot_array[1]}, Last spot: ${last_spot_array[0]}/${last_spot_array[1]}\n" "${#dates[@]}" "${#sorted_lines_array[@]}"
+    [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() got scrape with %4d spots from %4d wspr cycles. First spot: ${first_spot_array[0]}/${first_spot_array[1]}, Last spot: ${last_spot_array[0]}/${last_spot_array[1]}\n" "${#sorted_lines_array[@]}" "${#dates[@]}" 
 
     ### For monitoring and validation, document the gap between the last spot of the last scrape and the first spot of this scrape
     local spot_num_gap=$(( ${first_spot_array[0]} - ${WSPRNET_LAST_SPOTNUM} ))
