@@ -12,8 +12,13 @@
 
 shopt -s -o nounset          ### bash stops with error if undeclared variable is referenced
 
-declare VERSION=1.0
+declare VERSION=1.1
+
 export TZ=UTC LC_TIME=POSIX          ### Ensures that log dates will be in UTC
+
+declare TS_USER=wsprnet
+declare TS_PASSWORD=Ri6chaeb
+declare TS_DB=wsprnet
 
 declare UPLOAD_MODE="API"            ## Either 
 declare UPLOAD_TO_WD1="no"
@@ -122,7 +127,8 @@ declare UPLOAD_WN_BATCH_PYTHON_CMD=${WSPRNET_SCRAPER_HOME_PATH}/ts_upload_batch.
 declare UPLOAD_SPOT_SQL='INSERT INTO spots (wd_time, "Spotnum", "Date", "Reporter", "ReporterGrid", "dB", "MHz", "CallSign", "Grid", "Power", "Drift", distance, azimuth, "Band", version, code, 
     wd_band, wd_c2_noise, wd_rms_noise, wd_rx_az, wd_rx_lat, wd_rx_lon, wd_tx_az, wd_tx_lat, wd_tx_lon, wd_v_lat, wd_v_lon ) 
     VALUES( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s );'
-declare UPLOAD_WN_BATCH_TS_CONNECT_INFO="dbname='wsprnet' user='wsprnet' host='localhost' password='Ri6chaeb'"
+
+declare UPLOAD_WN_BATCH_TS_CONNECT_INFO="dbname='${TS_DB}' user='${TS_USER}' host='localhost' password='${TS_PASSWORD}'"
 
 ### Executes a batch upload of csv file $2 using SQL in $1.  TS login info is $3
 function create_wn_spots_batch_upload_python() {
@@ -242,16 +248,26 @@ function wpsrnet_get_spots() {
         ret_code=2
     fi
     local session_token="${session_name}=${sessid}"
+    [[ ${verbosity} -ge 2 ]] && echo "$(date): wpsrnet_get_spots(): got wsprnet session_token = ${session_token}"
  
     if [[ ${WSPRNET_LAST_SPOTNUM} -eq 0 ]]; then
         ### Get the largest Spotnum from the TS DB
-        local last_spotnum=$(PGPASSWORD=Ri6chaeb psql -t -U wsprnet -d wsprnet -c 'select "Spotnum" from spots order by "Spotnum" desc limit 1 ;' | tr -d ' ')
-        if [[ ${last_spotnum} -gt 0 ]]; then
-            WSPRNET_LAST_SPOTNUM=${last_spotnum}
-            [[ ${verbosity} -ge 1 ]] && echo "$(date): wpsrnet_get_spots(): at startup using highest Spotnum ${last_spotnum} from TS, not 0"
-        else
-            [[ ${verbosity} -ge 1 ]] && echo "$(date): wpsrnet_get_spots(): at startup failed to get a Spotnum from TS"
+        ### I need to redirect the output to a file or the psql return code gets lost
+        local psql_output_file=./psql.out
+        PGPASSWORD=${TS_PASSWORD}  psql -t -U ${TS_USER} -d ${TS_DB}  -c 'select "Spotnum" from spots order by "Spotnum" desc limit 1 ;' > ${psql_output_file}
+        local ret_code=$?
+        if [[ ${ret_code} -ne 0 ]]; then
+            [[ ${verbosity} -ge 1 ]] && echo "$(date): wpsrnet_get_spots(): psql( ${TS_USER}/${TS_PASSWORD}/${TS_DB}) for latest TS returned error => ${ret_code}"
+            exit 1
         fi
+        local psql_output=$(cat ${psql_output_file})
+        local last_spotnum=$(tr -d ' ' <<< "${psql_output}")
+        if [[ -z "${last_spotnum}" ]] || [[ ${last_spotnum} -eq 0 ]]; then
+            [[ ${verbosity} -ge 1 ]] && echo "$(date): wpsrnet_get_spots(): at startup failed to get a Spotnum from TS"
+            exit 1
+        fi
+        WSPRNET_LAST_SPOTNUM=${last_spotnum}
+        [[ ${verbosity} -ge 1 ]] && echo "$(date): wpsrnet_get_spots(): at startup using highest Spotnum ${last_spotnum} from TS, not 0"
     fi
     [[ ${verbosity} -ge 2 ]] && echo "$(date): wpsrnet_get_spots() starting curl download for spotnum_start=${WSPRNET_LAST_SPOTNUM}"
     local start_seconds=${SECONDS}
@@ -696,19 +712,30 @@ else
     declare UPLOAD_DAEMON_FUNCTION=oldDb_scrape_daemon
 fi
 
+SCRAPER_CONFIG_FILE=${WSPRNET_SCRAPER_HOME_PATH}/wsprnet-scraper.conf
+if [[ -f ${SCRAPER_CONFIG_FILE} ]]; then
+    source ${SCRAPER_CONFIG_FILE}
+fi
+declare MIRROR_TO_WD1=${MIRROR_TO_WD1:-no}
 
 function scrape_start() {
-    ## spawn_daemon         upload_to_wd1_daemon           ${UPLOAD_PID_FILE}      ${UPLOAD_LOG_FILE}
+    if [[ ${MIRROR_TO_WD1} == "yes" ]]; then
+        spawn_daemon         upload_to_wd1_daemon           ${UPLOAD_PID_FILE}      ${UPLOAD_LOG_FILE}
+    fi
     spawn_daemon         ${UPLOAD_DAEMON_FUNCTION}      ${WSPR_DAEMON_PID_PATH} ${WSPR_DAEMON_LOG_PATH}
 }
 
 function scrape_status() {
-    #status_daemon        upload_to_wd1_daemon           ${UPLOAD_PID_FILE}      ${UPLOAD_LOG_FILE}
+    if [[ ${MIRROR_TO_WD1} == "yes" ]]; then
+        status_daemon        upload_to_wd1_daemon           ${UPLOAD_PID_FILE}      ${UPLOAD_LOG_FILE}
+    fi
     status_daemon        ${UPLOAD_DAEMON_FUNCTION}      ${WSPR_DAEMON_PID_PATH} ${WSPR_DAEMON_LOG_PATH}
 }
 
 function scrape_stop() {
-    #kill_daemon         upload_to_wd1_daemon           ${UPLOAD_PID_FILE}      ${UPLOAD_LOG_FILE}
+    if [[ ${MIRROR_TO_WD1} == "yes" ]]; then
+        kill_daemon         upload_to_wd1_daemon           ${UPLOAD_PID_FILE}      ${UPLOAD_LOG_FILE}
+    fi
     kill_daemon         ${UPLOAD_DAEMON_FUNCTION}      ${WSPR_DAEMON_PID_PATH} ${WSPR_DAEMON_LOG_PATH}
 }
 
