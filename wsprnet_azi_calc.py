@@ -108,14 +108,11 @@ def wsprnet_azi_calc(input_path, output_file):
     spot_lines=np.genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
     # get number of lines
     n_lines=len(spot_lines)
-    # split out the rx and tx locators
-    tx_locators=list(spot_lines[:,8])
-    rx_locators=list(spot_lines[:,4])
 
     # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
     spots = []
     for i in range(0, n_lines):
-        (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=spot_lines[i, 6], tx_locator=tx_locators[i], rx_locator=rx_locators[i])
+        (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=spot_lines[i, 6], tx_locator=spot_lines[i, 8], rx_locator=spot_lines[i, 4])
         # output the original data and add lat lon at tx and rx, azi at tx and rx, vertex lat lon and the band
         spots.append([
             spot_lines[i, 0],
