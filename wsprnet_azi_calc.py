@@ -12,6 +12,7 @@
 # In the script the following lines preceed this code and there's an EOF added at the end
 # V1.3 RR modified to accept API spot lines
 
+import argparse
 import csv
 import sys
 import numpy as np
@@ -31,7 +32,7 @@ def loc_to_lat_lon(locator):
         lon=lon-(1)+((ord(decomp[4])-ascii_base)/12)-(1/24)
     return(lat, lon)
 
-def wsprnet_azi_calc(input_path, output_path):
+def wsprnet_azi_calc(input_path, output_file):
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
     spot_lines=np.genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
     # get number of lines
@@ -41,7 +42,7 @@ def wsprnet_azi_calc(input_path, output_path):
     rx_locators=list(spot_lines[:,4])
 
     # open file for output as a csv file, to which we will copy original data and the tx and rx azimuths
-    with open(output_path, "w") as out_file:
+    with output_file as out_file:
         out_writer=csv.writer(out_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
         for i in range (0 , n_lines):
@@ -131,9 +132,9 @@ def wsprnet_azi_calc(input_path, output_path):
                               band, "-999.9", "-999.9", int(round(rx_azi)), "%.3f" % (rx_lat), "%.3f" % (rx_lon), int(round(tx_azi)), "%.3f" % (tx_lat), "%.3f" % (tx_lon), "%.3f" % (v_lat), "%.3f" % (v_lon)])
 
 if __name__ == "__main__":
-    # get the path to the latest_log.txt file from the command line
-    # input
-    spots_file_path=sys.argv[1]
-    # output
-    azi_file_path=sys.argv[2]
-    wsprnet_azi_calc(input_path=spots_file_path, output_path=azi_file_path)
+    parser = argparse.ArgumentParser(description='Add azimuth calculations to a WSPRNET Spots TSV file')
+    parser.add_argument("-i", "--input", dest="spotsFile", help="FILE is a CSV containing WSPRNET spots", metavar="FILE", required=True, type=str) # type=argparse.FileType('r')
+    parser.add_argument("-o", "--output", dest="spotsPlusAzimuthsFile", help="FILE is a CSV containing WSPRNET spots", metavar="FILE", required=True, nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+    args = parser.parse_args()
+
+    wsprnet_azi_calc(input_path=args.spotsFile, output_file=args.spotsPlusAzimuthsFile)
