@@ -74,8 +74,8 @@ freq_to_band = {
 }
 default_band = 9999
 
-# define function to convert 4 or 6 character Maidenhead locator to lat and lon in degrees
 def loc_to_lat_lon(locator):
+    """Convert a 4 or 6 character Maidenhead locator string to a tuple containing lat and lon in degrees"""
     locator=locator.strip()
     decomp=list(locator)
     lat=(((ord(decomp[1])-65)*10)+(ord(decomp[3])-48)+(1/2)-90)
@@ -90,6 +90,7 @@ def loc_to_lat_lon(locator):
     return(lat, lon)
 
 def calculate_azimuth(frequency, tx_locator, rx_locator):
+    """Calculate various location data and return them as a tuple in the additional_column_names order"""
     (tx_lat, tx_lon) = loc_to_lat_lon(tx_locator)    # call function to do conversion, then convert to radians
     phi_tx_lat = np.radians(tx_lat)
     lambda_tx_lon = np.radians(tx_lon)
@@ -139,6 +140,7 @@ def calculate_azimuth(frequency, tx_locator, rx_locator):
     return (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon)
 
 def process_csv_input(csv_file):
+    """Process a CSV input file and return the data as an array of dictionaries with the column_names and additional_column_names keys"""
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
     spot_lines=np.genfromtxt(csv_file, dtype='str', delimiter=',', loose=True, invalid_raise=False)
     # get number of lines
@@ -182,6 +184,7 @@ def process_csv_input(csv_file):
     return spots
 
 def process_json_input(json_file):
+    """Process a JSON input file and return the data as an array of dictionarys with the column_names and additional_column_names keys"""
     original_spots = json.load(json_file)
 
     # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
@@ -210,6 +213,7 @@ def process_json_input(json_file):
     return spots
 
 def wsprnet_azi_calc(input_file, output_file):
+    """Process an input file and output the data as a CSV"""
     with input_file as in_file:
         extension = os.path.splitext(in_file.name)[1]
         if extension == ".csv":
