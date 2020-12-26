@@ -135,9 +135,9 @@ def calculate_azimuth(frequency, tx_locator, rx_locator):
     band = freq_to_band.get(freq, default_band)
     return (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon)
 
-def wsprnet_azi_calc(input_path, output_file):
+def process_csv_input(csv_path):
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
-    spot_lines=np.genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
+    spot_lines=np.genfromtxt(csv_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
     # get number of lines
     n_lines=len(spot_lines)
 
@@ -176,6 +176,10 @@ def wsprnet_azi_calc(input_path, output_file):
             "wd_v_lon": "%.3f" % (v_lon)
         }
         spots.append(updated_spot)
+    return spots
+
+def wsprnet_azi_calc(input_path, output_file):
+    spots = process_csv_input(input_path)
 
     # open file for output as a csv file, to which we will copy original data and the tx and rx azimuths
     with output_file as out_file:
