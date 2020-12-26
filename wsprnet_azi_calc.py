@@ -12,10 +12,9 @@
 # In the script the following lines preceed this code and there's an EOF added at the end
 # V1.3 RR modified to accept API spot lines
 
-import numpy as np
-from numpy import genfromtxt
-import sys
 import csv
+import sys
+import numpy as np
 
 # define function to convert 4 or 6 character Maidenhead locator to lat and lon in degrees
 def loc_to_lat_lon(locator):
@@ -34,7 +33,7 @@ def loc_to_lat_lon(locator):
 
 def wsprnet_azi_calc(input_path, output_path):
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
-    spot_lines=genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
+    spot_lines=np.genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
     # get number of lines
     n_lines=len(spot_lines)
     # split out the rx and tx locators
