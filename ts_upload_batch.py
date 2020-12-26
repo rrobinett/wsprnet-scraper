@@ -42,7 +42,7 @@ def ts_batch_upload(batch_file, sql, connect_info):
             commit = "Committed"
             # close communication with the database
             cur.close()
-            logging.debug(connected, cursor, execute, commit)
+            logging.debug("%s %s %s %s" % (connected, cursor, execute, commit) )
     except:
         logging.error("Unable to record spot file to the database: %s %s %s %s" % (connected, cursor, execute, commit))
         ret_code=1
@@ -67,5 +67,6 @@ if __name__ == "__main__":
     with args.sqlFile as sql_file:
         sql = sql_file.read().strip()
 
-    connect_info="dbname='%s' user='%s' host='%s' password='%s'" % (args.database, args.address, args.username, args.password)
-    ts_batch_upload(batch_file=args.spotsFile, sql=sql, connect_info=None)
+    connect_info="dbname='%s' user='%s' host='%s' password='%s'" % (args.database, args.username, args.address, args.password)
+    logging.debug(connect_info)
+    ts_batch_upload(batch_file=args.spotsFile, sql=sql, connect_info=connect_info)
