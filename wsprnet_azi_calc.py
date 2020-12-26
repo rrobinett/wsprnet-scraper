@@ -103,7 +103,6 @@ def calculate_azimuth(frequency, tx_locator, rx_locator):
     band = freq_to_band.get(freq, default_band)
     return (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon)
 
-
 def wsprnet_azi_calc(input_path, output_file):
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
     spot_lines=np.genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
@@ -113,42 +112,46 @@ def wsprnet_azi_calc(input_path, output_file):
     tx_locators=list(spot_lines[:,8])
     rx_locators=list(spot_lines[:,4])
 
+    # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
+    spots = []
+    for i in range(0, n_lines):
+        (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=spot_lines[i, 6], tx_locator=tx_locators[i], rx_locator=rx_locators[i])
+        # output the original data and add lat lon at tx and rx, azi at tx and rx, vertex lat lon and the band
+        spots.append([
+            spot_lines[i, 0],
+            spot_lines[i, 1],
+            spot_lines[i, 2],
+            spot_lines[i, 3],
+            spot_lines[i, 4],
+            spot_lines[i, 5],
+            spot_lines[i, 6],
+            spot_lines[i, 7],
+            spot_lines[i, 8],
+            spot_lines[i, 9],
+            spot_lines[i, 10],
+            spot_lines[i, 11],
+            spot_lines[i, 12],
+            spot_lines[i, 13],
+            spot_lines[i, 14],
+            spot_lines[i, 15],
+            band,
+            "-999.9",
+            "-999.9",
+            int(round(rx_azi)),
+            "%.3f" % (rx_lat),
+            "%.3f" % (rx_lon),
+            int(round(tx_azi)),
+            "%.3f" % (tx_lat),
+            "%.3f" % (tx_lon),
+            "%.3f" % (v_lat),
+            "%.3f" % (v_lon)
+        ])
+
     # open file for output as a csv file, to which we will copy original data and the tx and rx azimuths
     with output_file as out_file:
         out_writer = csv.writer(out_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
-        for i in range(0, n_lines):
-            (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=spot_lines[i, 6], tx_locator=tx_locators[i], rx_locator=rx_locators[i])
-            # output the original data and add lat lon at tx and rx, azi at tx and rx, vertex lat lon and the band
-            out_writer.writerow([
-                spot_lines[i, 0],
-                spot_lines[i, 1],
-                spot_lines[i, 2],
-                spot_lines[i, 3],
-                spot_lines[i, 4],
-                spot_lines[i, 5],
-                spot_lines[i, 6],
-                spot_lines[i, 7],
-                spot_lines[i, 8],
-                spot_lines[i, 9],
-                spot_lines[i, 10],
-                spot_lines[i, 11],
-                spot_lines[i, 12],
-                spot_lines[i, 13],
-                spot_lines[i, 14],
-                spot_lines[i, 15],
-                band,
-                "-999.9",
-                "-999.9",
-                int(round(rx_azi)),
-                "%.3f" % (rx_lat),
-                "%.3f" % (rx_lon),
-                int(round(tx_azi)),
-                "%.3f" % (tx_lat),
-                "%.3f" % (tx_lon),
-                "%.3f" % (v_lat),
-                "%.3f" % (v_lon)
-            ])
+        for spot in spots:
+            out_writer.writerow(spot)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Add azimuth calculations to a WSPRNET Spots TSV file')
