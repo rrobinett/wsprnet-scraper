@@ -54,6 +54,56 @@ def loc_to_lat_lon(locator):
         lon=lon-(1)+((ord(decomp[4])-ascii_base)/12)-(1/24)
     return(lat, lon)
 
+def calculate_azimuth(spot_lines, tx_locators, rx_locators, i):
+    (tx_lat, tx_lon) = loc_to_lat_lon(tx_locators[i])    # call function to do conversion, then convert to radians
+    phi_tx_lat = np.radians(tx_lat)
+    lambda_tx_lon = np.radians(tx_lon)
+    (rx_lat,rx_lon) = loc_to_lat_lon(rx_locators[i])    # call function to do conversion, then convert to radians
+    phi_rx_lat = np.radians(rx_lat)
+    lambda_rx_lon = np.radians(rx_lon)
+    delta_phi = (phi_tx_lat - phi_rx_lat)
+    delta_lambda = (lambda_tx_lon-lambda_rx_lon)
+
+    # calculate azimuth at the rx
+    y = np.sin(delta_lambda) * np.cos(phi_tx_lat)
+    x = np.cos(phi_rx_lat)*np.sin(phi_tx_lat) - np.sin(phi_rx_lat)*np.cos(phi_tx_lat)*np.cos(delta_lambda)
+    rx_azi = (np.degrees(np.arctan2(y, x))) % 360
+
+    # calculate azimuth at the tx
+    p = np.sin(-delta_lambda) * np.cos(phi_rx_lat)
+    q = np.cos(phi_tx_lat)*np.sin(phi_rx_lat) - np.sin(phi_tx_lat)*np.cos(phi_rx_lat)*np.cos(-delta_lambda)
+    tx_azi = (np.degrees(np.arctan2(p, q))) % 360
+
+    # calculate the vertex, the lat lon at the point on the great circle path nearest the nearest pole, this is the highest latitude on the path
+    # no need to calculate special case of both transmitter and receiver on the equator, is handled OK
+    # Need special case for any meridian, where vertex longitude is the meridian longitude and the vertex latitude is the lat nearest the N or S pole
+    if tx_lon == rx_lon:
+        v_lon = tx_lon
+        v_lat = max([tx_lat, rx_lat], key=abs)
+    else:
+        v_lat = np.degrees(np.arccos(np.sin(np.radians(rx_azi))*np.cos(phi_rx_lat)))
+    if v_lat > 90.0:
+        v_lat = 180 - v_lat
+    if rx_azi < 180:
+        v_lon = ((rx_lon + np.degrees(np.arccos(np.tan(phi_rx_lat) / np.tan(np.radians(v_lat))))) + 360) % 360
+    else:
+        v_lon = ((rx_lon - np.degrees(np.arccos(np.tan(phi_rx_lat) / np.tan(np.radians(v_lat))))) + 360) % 360
+    if v_lon > 180:
+        v_lon = -(360 - v_lon)
+    # now test if vertex is not  on great circle track, if so, lat/lon nearest pole is used
+    if v_lon < min(tx_lon, rx_lon) or v_lon > max(tx_lon, rx_lon):
+    # this is the off track case
+        v_lat = max([tx_lat, rx_lat], key=abs)
+        if v_lat == tx_lat:
+            v_lon = tx_lon
+        else:
+            v_lon = rx_lon
+    # derive the band in metres (except 70cm and 23cm reported as 70 and 23) from the frequency
+    freq = int(10 * float(spot_lines[i, 6]))
+    band = freq_to_band.get(freq, default_band)
+    return (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon)
+
+
 def wsprnet_azi_calc(input_path, output_file):
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
     spot_lines=np.genfromtxt(input_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
@@ -65,59 +115,40 @@ def wsprnet_azi_calc(input_path, output_file):
 
     # open file for output as a csv file, to which we will copy original data and the tx and rx azimuths
     with output_file as out_file:
-        out_writer=csv.writer(out_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        out_writer = csv.writer(out_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
-        for i in range (0 , n_lines):
-            (tx_lat,tx_lon)=loc_to_lat_lon (tx_locators[i])    # call function to do conversion, then convert to radians
-            phi_tx_lat = np.radians(tx_lat)
-            lambda_tx_lon = np.radians(tx_lon)
-            (rx_lat,rx_lon)=loc_to_lat_lon (rx_locators[i])    # call function to do conversion, then convert to radians
-            phi_rx_lat = np.radians(rx_lat)
-            lambda_rx_lon = np.radians(rx_lon)
-            delta_phi = (phi_tx_lat - phi_rx_lat)
-            delta_lambda=(lambda_tx_lon-lambda_rx_lon)
-
-            # calculate azimuth at the rx
-            y = np.sin(delta_lambda) * np.cos(phi_tx_lat)
-            x = np.cos(phi_rx_lat)*np.sin(phi_tx_lat) - np.sin(phi_rx_lat)*np.cos(phi_tx_lat)*np.cos(delta_lambda)
-            rx_azi = (np.degrees(np.arctan2(y, x))) % 360
-
-            # calculate azimuth at the tx
-            p = np.sin(-delta_lambda) * np.cos(phi_rx_lat)
-            q = np.cos(phi_tx_lat)*np.sin(phi_rx_lat) - np.sin(phi_tx_lat)*np.cos(phi_rx_lat)*np.cos(-delta_lambda)
-            tx_azi = (np.degrees(np.arctan2(p, q))) % 360
-
-            # calculate the vertex, the lat lon at the point on the great circle path nearest the nearest pole, this is the highest latitude on the path
-            # no need to calculate special case of both transmitter and receiver on the equator, is handled OK
-            # Need special case for any meridian, where vertex longitude is the meridian longitude and the vertex latitude is the lat nearest the N or S pole
-            if tx_lon==rx_lon:
-                v_lon=tx_lon
-                v_lat=max([tx_lat, rx_lat], key=abs)
-            else:
-                v_lat=np.degrees(np.arccos(np.sin(np.radians(rx_azi))*np.cos(phi_rx_lat)))
-            if v_lat>90.0:
-                v_lat=180-v_lat
-            if rx_azi<180:
-                v_lon=((rx_lon+np.degrees(np.arccos(np.tan(phi_rx_lat)/np.tan(np.radians(v_lat)))))+360) % 360
-            else:
-                v_lon=((rx_lon-np.degrees(np.arccos(np.tan(phi_rx_lat)/np.tan(np.radians(v_lat)))))+360) % 360
-            if v_lon>180:
-                v_lon=-(360-v_lon)
-            # now test if vertex is not  on great circle track, if so, lat/lon nearest pole is used
-            if v_lon < min(tx_lon, rx_lon) or v_lon > max(tx_lon, rx_lon):
-            # this is the off track case
-                v_lat=max([tx_lat, rx_lat], key=abs)
-                if v_lat==tx_lat:
-                    v_lon=tx_lon
-                else:
-                    v_lon=rx_lon
-            # derive the band in metres (except 70cm and 23cm reported as 70 and 23) from the frequency
-            freq=int(10*float(spot_lines[i,6]))
-            band=freq_to_band.get(freq, default=default_band)
+        for i in range(0, n_lines):
+            (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(spot_lines=spot_lines, tx_locators=tx_locators, rx_locators=rx_locators, i=i)
             # output the original data and add lat lon at tx and rx, azi at tx and rx, vertex lat lon and the band
-            out_writer.writerow([spot_lines[i,0],  spot_lines[i,1],  spot_lines[i,2],  spot_lines[i,3],  spot_lines[i,4],  spot_lines[i,5], spot_lines[i,6], spot_lines[i,7], spot_lines[i,8], spot_lines[i,9],
-                              spot_lines[i,10], spot_lines[i,11], spot_lines[i,12], spot_lines[i,13], spot_lines[i,14], spot_lines[i,15],
-                              band, "-999.9", "-999.9", int(round(rx_azi)), "%.3f" % (rx_lat), "%.3f" % (rx_lon), int(round(tx_azi)), "%.3f" % (tx_lat), "%.3f" % (tx_lon), "%.3f" % (v_lat), "%.3f" % (v_lon)])
+            out_writer.writerow([
+                spot_lines[i, 0],
+                spot_lines[i, 1],
+                spot_lines[i, 2],
+                spot_lines[i, 3],
+                spot_lines[i, 4],
+                spot_lines[i, 5],
+                spot_lines[i, 6],
+                spot_lines[i, 7],
+                spot_lines[i, 8],
+                spot_lines[i, 9],
+                spot_lines[i, 10],
+                spot_lines[i, 11],
+                spot_lines[i, 12],
+                spot_lines[i, 13],
+                spot_lines[i, 14],
+                spot_lines[i, 15],
+                band,
+                "-999.9",
+                "-999.9",
+                int(round(rx_azi)),
+                "%.3f" % (rx_lat),
+                "%.3f" % (rx_lon),
+                int(round(tx_azi)),
+                "%.3f" % (tx_lat),
+                "%.3f" % (tx_lon),
+                "%.3f" % (v_lat),
+                "%.3f" % (v_lon)
+            ])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Add azimuth calculations to a WSPRNET Spots TSV file')
