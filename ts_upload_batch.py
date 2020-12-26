@@ -24,25 +24,27 @@ def ts_batch_upload(batch_file, sql, connect_info):
     global conn, connected, cursor, execute, commit, ret_code
     try:
         with batch_file as csv_file:
-            csv_data = csv.reader(csv_file, delimiter=',')
-            # connect to the PostgreSQL database
-            logging.debug("Trying to connect")
-            conn = psycopg2.connect(connect_info)
-            connected = "Connected"
-            logging.debug("Appear to have connected")
-            # create a new cursor
-            cur = conn.cursor()
-            cursor = "Got cursor"
-            # execute the INSERT statement
-            psycopg2.extras.execute_batch(cur, sql, csv_data)
-            execute = "Executed"
-            logging.debug("After the execute")
-            # commit the changes to the database
-            conn.commit()
-            commit = "Committed"
-            # close communication with the database
-            cur.close()
-            logging.debug(connected, cursor, execute, commit)
+            with sql as sql_file:
+                sql_string = sql_file.read().strip()
+                csv_data = csv.reader(csv_file, delimiter=',')
+                # connect to the PostgreSQL database
+                logging.debug("Trying to connect")
+                conn = psycopg2.connect(connect_info)
+                connected = "Connected"
+                logging.debug("Appear to have connected")
+                # create a new cursor
+                cur = conn.cursor()
+                cursor = "Got cursor"
+                # execute the INSERT statement
+                psycopg2.extras.execute_batch(cur, sql_string, csv_data)
+                execute = "Executed"
+                logging.debug("After the execute")
+                # commit the changes to the database
+                conn.commit()
+                commit = "Committed"
+                # close communication with the database
+                cur.close()
+                logging.debug(connected, cursor, execute, commit)
     except:
         logging.error("Unable to record spot file to the database: %s %s %s %s" % (connected, cursor, execute, commit))
         ret_code=1
