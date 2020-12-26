@@ -14,6 +14,9 @@
 
 import argparse
 import csv
+import datetime
+import json
+import os
 import sys
 import numpy as np
 
@@ -178,8 +181,43 @@ def process_csv_input(csv_path):
         spots.append(updated_spot)
     return spots
 
+def process_json_input(json_path):
+    with open(json_path, 'r') as fp:
+        original_spots = json.load(fp)
+
+        # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
+        spots = []
+        for original_spot in original_spots:
+            # ensure we drop any unknown keys and values
+            filtered_spot = {key: value for (key, value) in original_spot.items() if key in column_names}
+            # add the wd_time that wsprnet-scraper.sh seems to be creating
+            filtered_spot["wd_time"] = datetime.datetime.fromtimestamp(int(original_spot['Date']), tz=datetime.timezone.utc).strftime("%Y-%m-%d:%H:%M")
+            (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=original_spot["MHz"], tx_locator=original_spot["Grid"], rx_locator=original_spot["ReporterGrid"])
+            additional_values = {
+                "wd_band": band,
+                "wd_c2_noise": "-999.9",
+                "wd_rms_noise": "-999.9",
+                "wd_rx_az": int(round(rx_azi)),
+                "wd_rx_lat": "%.3f" % (rx_lat),
+                "wd_rx_lon": "%.3f" % (rx_lon),
+                "wd_tx_az": int(round(tx_azi)),
+                "wd_tx_lat": "%.3f" % (tx_lat),
+                "wd_tx_lon": "%.3f" % (tx_lon),
+                "wd_v_lat": "%.3f" % (v_lat),
+                "wd_v_lon": "%.3f" % (v_lon)
+            }
+            updated_spot = {**filtered_spot, **additional_values}
+            spots.append(updated_spot)
+    return spots
+
 def wsprnet_azi_calc(input_path, output_file):
-    spots = process_csv_input(input_path)
+    extension = os.path.splitext(input_path)[1]
+    if extension == ".json":
+        spots = process_json_input(json_path=input_path)
+    elif extension == ".csv":
+        spots = process_csv_input(csv_path=input_path)
+    else:
+        raise ValueError("Expected an input filename ending in .json or .csv, not %s" % extension)
 
     # open file for output as a csv file, to which we will copy original data and the tx and rx azimuths
     with output_file as out_file:
