@@ -54,11 +54,11 @@ def loc_to_lat_lon(locator):
         lon=lon-(1)+((ord(decomp[4])-ascii_base)/12)-(1/24)
     return(lat, lon)
 
-def calculate_azimuth(spot_lines, tx_locators, rx_locators, i):
-    (tx_lat, tx_lon) = loc_to_lat_lon(tx_locators[i])    # call function to do conversion, then convert to radians
+def calculate_azimuth(frequency, tx_locator, rx_locator):
+    (tx_lat, tx_lon) = loc_to_lat_lon(tx_locator)    # call function to do conversion, then convert to radians
     phi_tx_lat = np.radians(tx_lat)
     lambda_tx_lon = np.radians(tx_lon)
-    (rx_lat,rx_lon) = loc_to_lat_lon(rx_locators[i])    # call function to do conversion, then convert to radians
+    (rx_lat,rx_lon) = loc_to_lat_lon(rx_locator)    # call function to do conversion, then convert to radians
     phi_rx_lat = np.radians(rx_lat)
     lambda_rx_lon = np.radians(rx_lon)
     delta_phi = (phi_tx_lat - phi_rx_lat)
@@ -99,7 +99,7 @@ def calculate_azimuth(spot_lines, tx_locators, rx_locators, i):
         else:
             v_lon = rx_lon
     # derive the band in metres (except 70cm and 23cm reported as 70 and 23) from the frequency
-    freq = int(10 * float(spot_lines[i, 6]))
+    freq = int(10 * float(frequency))
     band = freq_to_band.get(freq, default_band)
     return (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon)
 
@@ -118,7 +118,7 @@ def wsprnet_azi_calc(input_path, output_file):
         out_writer = csv.writer(out_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
         for i in range(0, n_lines):
-            (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(spot_lines=spot_lines, tx_locators=tx_locators, rx_locators=rx_locators, i=i)
+            (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=spot_lines[i, 6], tx_locator=tx_locators[i], rx_locator=rx_locators[i])
             # output the original data and add lat lon at tx and rx, azi at tx and rx, vertex lat lon and the band
             out_writer.writerow([
                 spot_lines[i, 0],
