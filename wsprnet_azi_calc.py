@@ -138,9 +138,9 @@ def calculate_azimuth(frequency, tx_locator, rx_locator):
     band = freq_to_band.get(freq, default_band)
     return (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon)
 
-def process_csv_input(csv_path):
+def process_csv_input(csv_file):
     # now read in lines file, as a single string, skip over lines with unexpected number of columns
-    spot_lines=np.genfromtxt(csv_path, dtype='str', delimiter=',', loose=True, invalid_raise=False)
+    spot_lines=np.genfromtxt(csv_file, dtype='str', delimiter=',', loose=True, invalid_raise=False)
     # get number of lines
     n_lines=len(spot_lines)
 
@@ -181,43 +181,42 @@ def process_csv_input(csv_path):
         spots.append(updated_spot)
     return spots
 
-def process_json_input(json_path):
-    with open(json_path, 'r') as fp:
-        original_spots = json.load(fp)
+def process_json_input(json_file):
+    original_spots = json.load(json_file)
 
-        # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
-        spots = []
-        for original_spot in original_spots:
-            # ensure we drop any unknown keys and values
-            filtered_spot = {key: value for (key, value) in original_spot.items() if key in column_names}
-            # add the wd_time that wsprnet-scraper.sh seems to be creating
-            filtered_spot["wd_time"] = datetime.datetime.fromtimestamp(int(original_spot['Date']), tz=datetime.timezone.utc).strftime("%Y-%m-%d:%H:%M")
-            (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=original_spot["MHz"], tx_locator=original_spot["Grid"], rx_locator=original_spot["ReporterGrid"])
-            additional_values = {
-                "wd_band": band,
-                "wd_c2_noise": "-999.9",
-                "wd_rms_noise": "-999.9",
-                "wd_rx_az": int(round(rx_azi)),
-                "wd_rx_lat": "%.3f" % (rx_lat),
-                "wd_rx_lon": "%.3f" % (rx_lon),
-                "wd_tx_az": int(round(tx_azi)),
-                "wd_tx_lat": "%.3f" % (tx_lat),
-                "wd_tx_lon": "%.3f" % (tx_lon),
-                "wd_v_lat": "%.3f" % (v_lat),
-                "wd_v_lon": "%.3f" % (v_lon)
-            }
-            updated_spot = {**filtered_spot, **additional_values}
-            spots.append(updated_spot)
+    # loop to calculate  azimuths at tx and rx (wsprnet only does the tx azimuth)
+    spots = []
+    for original_spot in original_spots:
+        # ensure we drop any unknown keys and values
+        filtered_spot = {key: value for (key, value) in original_spot.items() if key in column_names}
+        # add the wd_time that wsprnet-scraper.sh seems to be creating
+        filtered_spot["wd_time"] = datetime.datetime.fromtimestamp(int(original_spot['Date']), tz=datetime.timezone.utc).strftime("%Y-%m-%d:%H:%M")
+        (band, rx_azi, rx_lat, rx_lon, tx_azi, tx_lat, tx_lon, v_lat, v_lon) = calculate_azimuth(frequency=original_spot["MHz"], tx_locator=original_spot["Grid"], rx_locator=original_spot["ReporterGrid"])
+        additional_values = {
+            "wd_band": band,
+            "wd_c2_noise": "-999.9",
+            "wd_rms_noise": "-999.9",
+            "wd_rx_az": int(round(rx_azi)),
+            "wd_rx_lat": "%.3f" % (rx_lat),
+            "wd_rx_lon": "%.3f" % (rx_lon),
+            "wd_tx_az": int(round(tx_azi)),
+            "wd_tx_lat": "%.3f" % (tx_lat),
+            "wd_tx_lon": "%.3f" % (tx_lon),
+            "wd_v_lat": "%.3f" % (v_lat),
+            "wd_v_lon": "%.3f" % (v_lon)
+        }
+        updated_spot = {**filtered_spot, **additional_values}
+        spots.append(updated_spot)
     return spots
 
-def wsprnet_azi_calc(input_path, output_file):
-    extension = os.path.splitext(input_path)[1]
-    if extension == ".json":
-        spots = process_json_input(json_path=input_path)
-    elif extension == ".csv":
-        spots = process_csv_input(csv_path=input_path)
-    else:
-        raise ValueError("Expected an input filename ending in .json or .csv, not %s" % extension)
+def wsprnet_azi_calc(input_file, output_file):
+    with input_file as in_file:
+        extension = os.path.splitext(in_file.name)[1]
+        if extension == ".csv":
+            spots = process_csv_input(csv_file=in_file)
+        # assume JSON if not explicitly given a CSV file, including via STDIN
+        else:
+            spots = process_json_input(json_file=in_file)
 
     # open file for output as a csv file, to which we will copy original data and the tx and rx azimuths
     with output_file as out_file:
@@ -227,8 +226,8 @@ def wsprnet_azi_calc(input_path, output_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Add azimuth calculations to a WSPRNET Spots TSV file')
-    parser.add_argument("-i", "--input", dest="spotsFile", help="FILE is a CSV containing WSPRNET spots", metavar="FILE", required=True, type=str) # type=argparse.FileType('r')
+    parser.add_argument("-i", "--input", dest="spotsFile", help="FILE is a CSV containing WSPRNET spots", metavar="FILE", required=True, nargs='?', type=argparse.FileType('r'), default=sys.stdin)
     parser.add_argument("-o", "--output", dest="spotsPlusAzimuthsFile", help="FILE is a CSV containing WSPRNET spots", metavar="FILE", required=True, nargs='?', type=argparse.FileType('w'), default=sys.stdout)
     args = parser.parse_args()
 
-    wsprnet_azi_calc(input_path=args.spotsFile, output_file=args.spotsPlusAzimuthsFile)
+    wsprnet_azi_calc(input_file=args.spotsFile, output_file=args.spotsPlusAzimuthsFile)

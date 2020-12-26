@@ -15,8 +15,8 @@ wsprnet-scraper.sh -> wsprnet_azi_calc.py -> ts_upload_batch.py
 wsprnet_azi_calc.py [-h] -i FILE -o [FILE]
 ```
 
-`STDOUT` can be used instead of files on disk with the `-` character:
+`STDIN` and `STDOUT` can be used instead of files on disk with the `-` character:
 
 ```
-python3 wsprnet_azi_calc.py -i wsprnet_spots.csv -o - | head
+cat wsprnet_spots.json | python3 wsprnet_azi_calc.py -i - -o - | head
 ```
