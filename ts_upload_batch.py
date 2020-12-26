@@ -10,6 +10,7 @@ import psycopg2.extras           # This is needed for the batch upload functiona
 import csv                       # To import the csv file
 import sys                       # to get at command line argument with argv
 import argparse
+import logging
 
 # initially set the connection flag to be None
 conn=None
@@ -25,25 +26,25 @@ def ts_batch_upload(batch_file, sql, connect_info):
         with batch_file as csv_file:
             csv_data = csv.reader(csv_file, delimiter=',')
             # connect to the PostgreSQL database
-            #print ("Trying to  connect")
+            logging.debug("Trying to connect")
             conn = psycopg2.connect(connect_info)
             connected = "Connected"
-            #print ("Appear to have connected")
+            logging.debug("Appear to have connected")
             # create a new cursor
             cur = conn.cursor()
             cursor = "Got cursor"
             # execute the INSERT statement
             psycopg2.extras.execute_batch(cur, sql, csv_data)
             execute = "Executed"
-            #print ("After the execute")
+            logging.debug("After the execute")
             # commit the changes to the database
             conn.commit()
             commit = "Committed"
             # close communication with the database
             cur.close()
-            #print (connected,cursor, execute,commit)
+            logging.debug(connected, cursor, execute, commit)
     except:
-        print("Unable to record spot file to the database:", connected, cursor, execute, commit)
+        logging.error("Unable to record spot file to the database: %s %s %s %s" % (connected, cursor, execute, commit))
         ret_code=1
     finally:
             if conn is not None:
@@ -58,7 +59,10 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--database", dest="database", help="DATABASE is the database name in Timescale DB", metavar="DATABASE", required=True)
     parser.add_argument("-u", "--username", dest="username", help="USERNAME is the username to use with Timescale DB", metavar="USERNAME", required=True)
     parser.add_argument("-p", "--password", dest="password", help="PASSWORD is the password to use with Timescale DB", metavar="PASSWORD", required=True)
+    parser.add_argument("--log", dest="log", help="The Python logging module's log level to use", type=lambda x: getattr(logging, x), required=False, default=logging.INFO)
     args = parser.parse_args()
+
+    logging.basicConfig(level=args.log)
 
     with args.sqlFile as sql_file:
         sql = sql_file.read().strip()
