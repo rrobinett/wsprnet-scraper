@@ -17,6 +17,28 @@ import csv
 import sys
 import numpy as np
 
+freq_to_band = {
+    1: 2200,
+    4: 630,
+    18: 160,
+    35: 80,
+    52: 60,
+    53: 60,
+    70: 40,
+    101: 30,
+    140: 20,
+    181: 17,
+    210: 15,
+    249: 12,
+    281: 10,
+    502: 6,
+    700: 4,
+    1444: 2,
+    4323: 70,
+    12965: 23
+}
+default_band = 9999
+
 # define function to convert 4 or 6 character Maidenhead locator to lat and lon in degrees
 def loc_to_lat_lon(locator):
     locator=locator.strip()
@@ -91,27 +113,7 @@ def wsprnet_azi_calc(input_path, output_file):
                     v_lon=rx_lon
             # derive the band in metres (except 70cm and 23cm reported as 70 and 23) from the frequency
             freq=int(10*float(spot_lines[i,6]))
-            freq_to_band={
-                1: 2200,
-                4: 630,
-                18: 160,
-                35: 80,
-                52: 60,
-                53: 60,
-                70: 40,
-                101: 30,
-                140: 20,
-                181: 17,
-                210: 15,
-                249: 12,
-                281: 10,
-                502: 6,
-                700: 4,
-                1444: 2,
-                4323: 70,
-                12965: 23
-            }
-            band=freq_to_band.get(freq, default=9999)
+            band=freq_to_band.get(freq, default=default_band)
             # output the original data and add lat lon at tx and rx, azi at tx and rx, vertex lat lon and the band
             out_writer.writerow([spot_lines[i,0],  spot_lines[i,1],  spot_lines[i,2],  spot_lines[i,3],  spot_lines[i,4],  spot_lines[i,5], spot_lines[i,6], spot_lines[i,7], spot_lines[i,8], spot_lines[i,9],
                               spot_lines[i,10], spot_lines[i,11], spot_lines[i,12], spot_lines[i,13], spot_lines[i,14], spot_lines[i,15],
