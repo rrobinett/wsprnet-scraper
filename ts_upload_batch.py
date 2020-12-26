@@ -24,28 +24,27 @@ def ts_batch_upload(batch_file, sql, connect_info):
     try:
         with batch_file as csv_file:
             csv_data = csv.reader(csv_file, delimiter=',')
-            try:
-                # connect to the PostgreSQL database
-                #print ("Trying to  connect")
-                conn = psycopg2.connect(connect_info)
-                connected = "Connected"
-                #print ("Appear to have connected")
-                # create a new cursor
-                cur = conn.cursor()
-                cursor = "Got cursor"
-                # execute the INSERT statement
-                psycopg2.extras.execute_batch(cur, sql, csv_data)
-                execute = "Executed"
-                #print ("After the execute")
-                # commit the changes to the database
-                conn.commit()
-                commit = "Committed"
-                # close communication with the database
-                cur.close()
-                #print (connected,cursor, execute,commit)
-            except:
-                print("Unable to record spot file to the database:", connected, cursor, execute, commit)
-                ret_code=1
+            # connect to the PostgreSQL database
+            #print ("Trying to  connect")
+            conn = psycopg2.connect(connect_info)
+            connected = "Connected"
+            #print ("Appear to have connected")
+            # create a new cursor
+            cur = conn.cursor()
+            cursor = "Got cursor"
+            # execute the INSERT statement
+            psycopg2.extras.execute_batch(cur, sql, csv_data)
+            execute = "Executed"
+            #print ("After the execute")
+            # commit the changes to the database
+            conn.commit()
+            commit = "Committed"
+            # close communication with the database
+            cur.close()
+            #print (connected,cursor, execute,commit)
+    except:
+        print("Unable to record spot file to the database:", connected, cursor, execute, commit)
+        ret_code=1
     finally:
             if conn is not None:
                 conn.close()
