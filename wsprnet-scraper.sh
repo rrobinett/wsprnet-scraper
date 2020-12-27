@@ -241,6 +241,7 @@ function wpsrnet_get_spots() {
 function wsprnet_to_csv() {
     local wsprnet_html_spot_file=$1
     local wsprnet_csv_spot_file=$2
+        local scrape_start_seconds=$3
     
     local lines=$(cat ${wsprnet_html_spot_file} | sed 's/[{]/\n/g; s/[}],//g; s/"//g; s/[}]/\n/' | sed '/^\[/d; /^\]/d; s/[a-zA-Z]*://g')
           lines="${lines//\\/}"          ### Strips the '\' out of the call sign and reporter fields, e.g. 'N6GN\/P' becomes 'N6GN/P''
@@ -309,7 +310,8 @@ function wsprnet_to_csv() {
 
     local first_spot_array=(${sorted_lines_array[0]//,/ })
     local last_spot_array=(${sorted_lines_array[${max_index}]//,/ })
-    [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() got scrape with %4d spots from %4d wspr cycles. First spot: ${first_spot_array[0]}/${first_spot_array[1]}, Last spot: ${last_spot_array[0]}/${last_spot_array[1]}\n" "${#sorted_lines_array[@]}" "${#dates[@]}" 
+    local scrape_seconds=$(( ${SECONDS} - ${scrape_start_seconds} ))
+    [[ ${verbosity} -ge 1 ]] && printf "$(date): wsprnet_to_csv() in %3d seconds got scrape with %4d spots from %4d wspr cycles. First spot: ${first_spot_array[0]}/${first_spot_array[1]}, Last spot: ${last_spot_array[0]}/${last_spot_array[1]}\n" ${scrape_seconds} "${#sorted_lines_array[@]}" "${#dates[@]}" 
 
     ### For monitoring and validation, document the gap between the last spot of the last scrape and the first spot of this scrape
     local spot_num_gap=$(( ${first_spot_array[0]} - ${WSPRNET_LAST_SPOTNUM} ))
@@ -384,6 +386,8 @@ function wsprnet_add_azi() {
 declare UPLOAD_TO_TS="yes"    ### -u => don't upload 
 
 function api_scrape_once() {
+    local scrape_start_seconds=${SECONDS}
+
     if [[ ! -f ${WSPRNET_SESSION_ID_FILE} ]]; then
         wpsrnet_login
     fi
@@ -393,7 +397,7 @@ function api_scrape_once() {
         if [[ ${ret_code} -ne 0 ]]; then
             [[ ${verbosity} -ge 2 ]] && echo "$(date): api_scrape_once() wpsrnet_get_spots reported error => ${ret_code}."
         else
-            wsprnet_to_csv      ${WSPRNET_HTML_SPOT_FILE} ${WSPRNET_CSV_SPOT_FILE}
+            wsprnet_to_csv      ${WSPRNET_HTML_SPOT_FILE} ${WSPRNET_CSV_SPOT_FILE} ${scrape_start_seconds}
             wsprnet_add_azi     ${WSPRNET_CSV_SPOT_FILE}  ${WSPRNET_CSV_SPOT_AZI_FILE}
             if [[ ${UPLOAD_TO_TS} == "yes" ]]; then
                 wn_spots_batch_upload    ${WSPRNET_CSV_SPOT_AZI_FILE}
