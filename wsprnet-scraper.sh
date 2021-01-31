@@ -425,7 +425,7 @@ function api_scrape_once() {
             fi
             if [[ -x ${CLICKHOUSE_IMPORT_CMD} ]]; then
                 ( cd ${CLICKHOUSE_IMPORT_CMD_DIR}; ${CLICKHOUSE_IMPORT_CMD} ${WSPRNET_CSV_SPOT_FILE} )
-                [[ ${verbosity} -ge 1 ]] && echo "$(date): The Clickhouse database has been updated"
+                [[ ${verbosity} -ge 2 ]] && echo "$(date): The Clickhouse database has been updated"
             fi
             [[ ${verbosity} -ge 2 ]] && printf "$(date): api_scrape_once() batch upload completed.\n"
         fi
