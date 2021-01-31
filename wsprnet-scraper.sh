@@ -16,14 +16,33 @@ declare VERSION=1.1
 
 export TZ=UTC LC_TIME=POSIX          ### Ensures that log dates will be in UTC
 
-declare TS_USER=wsprnet
-declare TS_PASSWORD=Ri6chaeb
-declare TS_DB=wsprnet
+declare WSPRNET_SCRAPER_HOME_PATH=/home/scraper/wsprnet-scraper
+
+### Get these TS_... values from the conf file
+declare TS_USER=""
+declare TS_PASSWORD=""
+declare TS_DB=""
 
 declare UPLOAD_MODE="API"            ## Either 
 declare UPLOAD_TO_WD1="no"
 
-declare WSPRNET_SCRAPER_HOME_PATH=/home/scraper/wsprnet-scraper
+### Get the Wsprnet login info from the conf file
+declare WSPRNET_USER=""
+declare WSPRNET_PASSWORD=""
+
+declare WSPR_SCRAPER_CONF_FILE="./wsprnet-scraper.conf"
+
+if [[ ! -f ${WSPR_SCRAPER_CONF_FILE} ]]; then
+    echo "ERROR: can't open '${WSPR_SCRAPER_CONF_FILE}'"
+    exit 1
+fi
+
+source ${WSPR_SCRAPER_CONF_FILE}
+
+if [[ -z "${WSPRNET_USER}" || -z "${WSPRNET_PASSWORD}" || -z "${TS_USER}" || -z "${TS_PASSWORD}" || -z "${TS_DB}" ]]; then
+    echo "ERROR: '${WSPR_SCRAPER_CONF_FILE}' doesn't contain lines which declare one or more of the expected variables"
+    exit 1
+fi
 
 #############################################
 declare -i verbosity=${v:-0}         ### default to level 0, but can be overridden on the cmd line.  e.g "v=2 wsprdaemon.sh -V"
@@ -149,7 +168,7 @@ declare WSPRNET_SESSION_ID_FILE=${WSPRNET_SCRAPER_HOME_PATH}/wsprnet_session_inf
 
 function wpsrnet_login() {
     [[ ${verbosity} -ge 1 ]] && echo "$(date): wpsrnet_login() executing curl to login"
-    timeout 60 curl -s -d '{"name":"ai6vn", "pass":"2nsSm2c2UvmRbr4x"}' -H "Content-Type: application/json" -X POST http://wsprnet.org/drupal/rest/user/login > ${WSPRNET_SESSION_ID_FILE}
+    timeout 60 curl -s -d '{"name":"'${WSPRNET_USER}'", "pass":"'${WSPRNET_PASSWORD}'"}' -H "Content-Type: application/json" -X POST http://wsprnet.org/drupal/rest/user/login > ${WSPRNET_SESSION_ID_FILE}
     local ret_code=$?
     if [[ ${ret_code} -eq 0 ]]; then
         local sessid=$(cat ${WSPRNET_SESSION_ID_FILE} | tr , '\n' | sed -n '/sessid/s/^.*://p' | sed 's/"//g')
