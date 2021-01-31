@@ -402,6 +402,8 @@ function wsprnet_add_azi() {
     return ${ret_code}
 }
 
+declare CLICKHOUSE_IMPORT_CMD=/home/arne/tools/wsprdaemonimport.sh
+declare CLICKHOUSE_IMPORT_CMD_DIR=${CLICKHOUSE_IMPORT_CMD%/*}
 declare UPLOAD_TO_TS="yes"    ### -u => don't upload 
 
 function api_scrape_once() {
@@ -420,6 +422,10 @@ function api_scrape_once() {
             wsprnet_add_azi     ${WSPRNET_CSV_SPOT_FILE}  ${WSPRNET_CSV_SPOT_AZI_FILE}
             if [[ ${UPLOAD_TO_TS} == "yes" ]]; then
                 wn_spots_batch_upload    ${WSPRNET_CSV_SPOT_AZI_FILE}
+            fi
+            if [[ -x ${CLICKHOUSE_IMPORT_CMD} ]]; then
+                ( cd ${CLICKHOUSE_IMPORT_CMD_DIR}; ${CLICKHOUSE_IMPORT_CMD} ${WSPRNET_CSV_SPOT_FILE} )
+                [[ ${verbosity} -ge 1 ]] && echo "$(date): The Clickhouse database has been updated"
             fi
             [[ ${verbosity} -ge 2 ]] && printf "$(date): api_scrape_once() batch upload completed.\n"
         fi
